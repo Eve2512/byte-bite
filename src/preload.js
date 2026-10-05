@@ -30,6 +30,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   onPetScreenSide: (callback) => ipcRenderer.on("pet-screen-side", (_, onRight) => callback(onRight)),
   onWakeFromDoze: (callback) => ipcRenderer.on("wake-from-doze", () => callback()),
   onDndChange: (callback) => ipcRenderer.on("dnd-change", (_, enabled) => callback(enabled)),
+  onTamagotchiSnapshot: (cb) => ipcRenderer.on("tamagotchi:snapshot", (_, snapshot) => cb(snapshot)),
+  getTamagotchiSnapshot: () => ipcRenderer.invoke("tamagotchi:get-snapshot"),
   onMiniModeChange: (cb) => ipcRenderer.on("mini-mode-change", (_, enabled, edge, options) => cb(enabled, edge, options)),
   onMiniClip: (cb) => ipcRenderer.on("mini-clip", (_, info) => cb(info)),
   onLowPowerIdleModeChange: (cb) => ipcRenderer.on("low-power-idle-mode-change", (_, enabled) => cb(enabled)),

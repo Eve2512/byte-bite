@@ -349,6 +349,9 @@ function createTamagotchiStore(options = {}) {
       tokensEatenTotal: pet.tokensEatenTotal,
       // Wall-clock moment the pet will faint if not fed (null when fainted).
       faintsAt: pet.alive ? pet.fullnessAt + pet.fullness * faintAfterMs : null,
+      // Lets renderers interpolate: fullness(t) = (faintsAt - t) / faintAfterMs.
+      faintAfterMs,
+      capturedAt: t,
     };
   }
 

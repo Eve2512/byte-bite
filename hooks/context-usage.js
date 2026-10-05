@@ -164,11 +164,100 @@ function extractClaudeContextUsageFromEntries(entries, sessionId) {
   return null;
 }
 
+// ── Tamagotchi meals ──
+// "Fresh" tokens are what a turn actually consumed: uncached input, newly
+// written cache, and output. Cache reads are excluded on purpose - they replay
+// the whole context every request and would make any turn look like a feast.
+const TOKEN_MEAL_MAX_PER_REPORT = 64;
+const TOKEN_MEAL_MAX_TOKENS = 2000000;
+const TOKEN_MEAL_ID_RE = /^[A-Za-z0-9_.:-]{1,128}$/;
+
+function clampMealTokens(value) {
+  const n = Math.floor(normalizeUsageNumber(value));
+  return Math.min(n, TOKEN_MEAL_MAX_TOKENS);
+}
+
+function normalizeTokenMealId(value) {
+  return typeof value === "string" && TOKEN_MEAL_ID_RE.test(value) ? value : null;
+}
+
+// Claude Code writes one transcript entry per content block, and every entry
+// of the same API message repeats that message's usage. Meals are therefore
+// keyed by message.id and keep the largest sighting; entries without a stable
+// id are skipped rather than risk double-feeding. Only opaque ids and counts
+// leave the hook - never content.
+function extractClaudeTokenMealsFromEntries(entries, sessionId) {
+  if (!Array.isArray(entries)) return [];
+  const byId = new Map();
+  for (const entry of entries) {
+    if (!entry || typeof entry !== "object") continue;
+    if (entry.type !== "assistant") continue;
+    if (entry.isApiErrorMessage === true) continue;
+    if (!entryMatchesSession(entry, sessionId)) continue;
+    const message = entry.message && typeof entry.message === "object" ? entry.message : null;
+    const usage = message && message.usage && typeof message.usage === "object" ? message.usage : null;
+    if (!usage) continue;
+    const id = normalizeTokenMealId(message.id);
+    if (!id) continue;
+    const tokens = clampMealTokens(
+      normalizeUsageNumber(usage.input_tokens)
+      + normalizeUsageNumber(usage.cache_creation_input_tokens)
+      + normalizeUsageNumber(usage.output_tokens)
+    );
+    if (tokens <= 0) continue;
+    const prev = byId.get(id);
+    if (prev === undefined || tokens > prev) {
+      byId.delete(id);
+      byId.set(id, tokens);
+    }
+  }
+  const meals = [];
+  for (const [id, tokens] of byId) meals.push({ id, tokens });
+  return meals.slice(-TOKEN_MEAL_MAX_PER_REPORT);
+}
+
+// Server-side trust-boundary re-validation of the hook's token_meals field.
+function normalizeTokenMeals(value) {
+  if (!Array.isArray(value)) return [];
+  const out = [];
+  for (const meal of value.slice(-TOKEN_MEAL_MAX_PER_REPORT)) {
+    if (!meal || typeof meal !== "object") continue;
+    const id = normalizeTokenMealId(meal.id);
+    const tokens = clampMealTokens(meal.tokens);
+    if (id && tokens > 0) out.push({ id, tokens });
+  }
+  return out;
+}
+
+function codexFreshTokens(usage) {
+  if (!usage || typeof usage !== "object") return null;
+  const input = normalizeUsageNumber(usage.input_tokens);
+  const cached = Math.min(input, normalizeUsageNumber(usage.cached_input_tokens));
+  const output = normalizeUsageNumber(usage.output_tokens);
+  const fresh = input - cached + output;
+  return Number.isFinite(fresh) ? Math.floor(fresh) : null;
+}
+
+// Codex token_count events carry a running per-session total plus the last
+// request. The store feeds on the delta of `total`, so Codex Desktop rewriting
+// the same token_count on focus is a zero-calorie no-op.
+function extractCodexTokenUsage(payload) {
+  const info = payload && payload.info && typeof payload.info === "object" ? payload.info : null;
+  if (!info) return null;
+  const total = codexFreshTokens(info.total_token_usage);
+  if (total === null) return null;
+  const last = codexFreshTokens(info.last_token_usage);
+  return { total, last: last === null ? 0 : Math.min(last, TOKEN_MEAL_MAX_TOKENS) };
+}
+
 module.exports = {
   CLAUDE_1M_CONTEXT_LIMIT,
   DEFAULT_CLAUDE_CONTEXT_LIMIT,
   computeClaudeUsageFromEntry,
   extractClaudeContextUsageFromEntries,
   extractClaudeStatuslineContextUsage,
+  extractClaudeTokenMealsFromEntries,
+  extractCodexTokenUsage,
+  normalizeTokenMeals,
   resolveClaudeContextLimit,
 };

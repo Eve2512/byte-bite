@@ -39,6 +39,7 @@ const { resolveCodexOfficialHookState } = require("./server-codex-official-turns
 const { normalizeTranscriptPath } = require("./transcript-path");
 const { normalizeQuotaGroup } = require("../hooks/quota-bucket");
 const { ANTIGRAVITY_QUOTA_FIELDS } = require("../hooks/antigravity-context-usage");
+const { normalizeTokenMeals } = require("../hooks/context-usage");
 const { CLAUDE_QUOTA_FIELDS } = require("../hooks/claude-rate-limits");
 const { CODEX_QUOTA_FIELDS } = require("../hooks/codex-rate-limits");
 const { extractPermissionToolInput } = require("../hooks/kimi-hook");
@@ -571,6 +572,15 @@ function handleStatePost(req, res, options) {
           ...(codexSparkQuota ? { codexSparkQuota } : {}),
           ...(trustedProfileId === "local" ? {} : { displayHost: host }),
         });
+      }
+      // Tamagotchi meals, like quota, are not session state: feed before any
+      // session-level suppression below so an archived/suppressed lifecycle
+      // still counts the tokens it consumed.
+      if (agentId === "claude-code" && typeof ctx.feedTamagotchiMeals === "function") {
+        const tokenMeals = normalizeTokenMeals(data.token_meals);
+        if (tokenMeals.length) {
+          ctx.feedTamagotchiMeals(tokenMeals, trustedProfileId === "local" ? "local" : `remote:${trustedProfileId}`);
+        }
       }
       // Local Codex archive lifecycle (#655): once the local task's rollout is
       // confirmed archived, a late lifecycle hook or passive user-input request

@@ -2500,6 +2500,19 @@ _settingsController.subscribeKey("kimiQuotaCollectionEnabled", (enabled) => {
     console.warn("Clawd: Kimi quota preference reconciliation failed:", error && error.message);
   });
 });
+
+// ── Tamagotchi (byte-bite): agents' fresh tokens feed the pet ──
+// Opt-in; the store neither feeds nor persists while the pref is off.
+const _tamagotchi = require("./tamagotchi-store").createTamagotchiStore({
+  enabled: _settingsController.get("tamagotchiEnabled") === true,
+  logWarn: (...args) => console.warn(...args),
+});
+_settingsController.subscribeKey("tamagotchiEnabled", (enabled) => {
+  _tamagotchi.setEnabled(enabled === true);
+});
+const TAMAGOTCHI_TICK_MS = 60 * 1000;
+const _tamagotchiTimer = setInterval(() => _tamagotchi.tick(), TAMAGOTCHI_TICK_MS);
+if (typeof _tamagotchiTimer.unref === "function") _tamagotchiTimer.unref();
 _settingsController.subscribeKey("agents", (_agents, snapshot) => {
   if (!_runtimeAgentGate.isAgentEnabled("kimi-cli")) {
     _kimiQuotaRuntime.invalidateRequests();
@@ -2941,6 +2954,7 @@ agentRuntime = createAgentRuntimeMain({
   clearCodexNotifyBubbles: (...args) => clearCodexNotifyBubbles(...args),
   showCodexUserInputBubble: (...args) => showCodexUserInputBubble(...args),
   clearCodexUserInputBubbles: (...args) => clearCodexUserInputBubbles(...args),
+  feedCodexTokens: (sessionKey, usage) => _tamagotchi.feedCodexUsage(sessionKey, usage),
   loadCodexArchiveTracker: () => require("./codex-archive-tracker"),
   onCodexArchiveLifecycleEnd: (payload) => {
     if (sessionAutomationCoordinator) sessionAutomationCoordinator.onSessionLifecycleEnd(payload);
@@ -2997,6 +3011,7 @@ const _serverCtx = {
   clearClaudeStatuslineAuthority: (profileId) => _state.clearClaudeStatuslineAuthority(profileId),
   clearLocalClaudeQuota: () => _state.clearLocalClaudeQuota(),
   updateAccountQuota: (host, quotas) => _state.updateAccountQuota(host, quotas),
+  feedTamagotchiMeals: (meals, scope) => _tamagotchi.feedClaudeMeals(meals, scope),
   resolvePermissionEntry,
   sendPermissionResponse,
   addPendingPermission,
@@ -6036,6 +6051,8 @@ if (!gotTheLock) {
     if (displayedVisualProjection) displayedVisualProjection.dispose();
     try { recapRuntime.dispose(); } catch {}
     _state.cleanup();
+    clearInterval(_tamagotchiTimer);
+    try { _tamagotchi.dispose(); } catch {}
     _tick.cleanup();
     _mini.cleanup();
     if (macHideController) macHideController.stop();

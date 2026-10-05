@@ -81,6 +81,7 @@ function createAgentRuntimeMain(options = {}) {
     || createQoderSessionTitleTracker();
   const captureGhosttyTerminalId = options.captureGhosttyTerminalId || null;
   const clearCodexNotifyBubbles = options.clearCodexNotifyBubbles || (() => {});
+  const feedCodexTokens = typeof options.feedCodexTokens === "function" ? options.feedCodexTokens : null;
   const showCodexUserInputBubble = options.showCodexUserInputBubble || (() => false);
   const clearCodexUserInputBubbles = options.clearCodexUserInputBubbles || (() => {});
   // Narrow archive-specific lifecycle-end hook: revokes this session's
@@ -534,6 +535,11 @@ function createAgentRuntimeMain(options = {}) {
           rawSessionId: sessionIdentity.rawSessionId,
         };
         const accountQuotas = normalizeCodexMonitorAccountQuotas(extra);
+        // Tamagotchi food is account-level like quota: fed before any of the
+        // session-level fences/suppressions below can drop the event.
+        if (feedCodexTokens && extra && extra.codexTokenUsage) {
+          feedCodexTokens(sessionId, extra.codexTokenUsage);
+        }
         recordCodexTurnIdCapture(sessionId, "jsonl", event, extra && extra.turnId);
         const annotateCodexAccountQuota = () => {
           if (!accountQuotas) return;

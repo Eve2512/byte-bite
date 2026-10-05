@@ -7,7 +7,10 @@ const crypto = require("crypto");
 const fs = require("fs");
 const { postStateToRunningServer, readHostPrefix, resolveWslDistro } = require("./server-config");
 const { fitStateBodyToByteBudget } = require("./state-payload-size");
-const { extractClaudeContextUsageFromEntries } = require("./context-usage");
+const {
+  extractClaudeContextUsageFromEntries,
+  extractClaudeTokenMealsFromEntries,
+} = require("./context-usage");
 const { createPidResolver, readStdinJsonDetailed, getPlatformConfig, applyOrcaPaneKey } = require("./shared-process");
 const { updateRecoveryLeaseFromStateBody } = require("./session-recovery-lease");
 const { recordSessionHistoryFromStateBody } = require("./session-history");
@@ -699,6 +702,10 @@ function buildStateBody(event, payload, resolve) {
     payload.session_id || null,
   );
   if (contextUsage) body.context_usage = contextUsage;
+  // Tamagotchi food: opaque message ids + fresh token counts only. The app
+  // de-duplicates by id, so re-reporting the same tail is harmless.
+  const tokenMeals = extractClaudeTokenMealsFromEntries(transcriptEntries, payload.session_id || null);
+  if (tokenMeals.length) body.token_meals = tokenMeals;
   const sessionTitle =
     normalizeTitle(payload.session_title) ||
     extractSessionTitleFromEntries(transcriptEntries, payload.session_id || null);

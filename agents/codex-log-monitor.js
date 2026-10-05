@@ -30,6 +30,7 @@ const {
 } = require("../hooks/codex-rate-limits");
 const { parseCodexUserInputRecord } = require("../hooks/codex-user-input");
 const { getCodexLogEventKey } = require("../hooks/codex-log-event");
+const { extractCodexTokenUsage } = require("../hooks/context-usage");
 const { normalizeCodexTurnId } = require("../src/codex-turn-id");
 
 const MAX_TRACKED_FILES = 50;
@@ -1690,6 +1691,11 @@ class CodexLogMonitor {
     if (key === "event_msg:token_count") {
       const contextUsage = extractCodexContextUsage(payload);
       if (contextUsage) tracked.contextUsage = contextUsage;
+      // Tamagotchi food rides the same event. Same freshness gate as quota:
+      // replayed history must not feed the pet twice.
+      const tokenUsage = !tracked.backfilling && isFreshCodexQuotaTimestamp(obj && obj.timestamp)
+        ? extractCodexTokenUsage(payload)
+        : null;
       // Subscription quota rides the same event. Gated on the line's own
       // timestamp: backfill/restart replays parse old lines, and posting
       // their quota would stamp fresh arbitration metadata on stale data.
@@ -1703,8 +1709,11 @@ class CodexLogMonitor {
           providerHint: tracked.codexQuotaProviderHint,
         })
         : null;
-      const quotaExtra = quotaReport
-        ? { [quotaReport.providerKey]: quotaReport.quota }
+      const quotaExtra = quotaReport || tokenUsage
+        ? {
+          ...(quotaReport ? { [quotaReport.providerKey]: quotaReport.quota } : {}),
+          ...(tokenUsage ? { codexTokenUsage: tokenUsage } : {}),
+        }
         : null;
       if (quotaReport) tracked[quotaReport.providerKey] = quotaReport.quota;
       if ((contextUsage || quotaReport) && !tracked.backfilling) {
@@ -2166,6 +2175,7 @@ class CodexLogMonitor {
       codexOriginator: tracked.codexOriginator || null,
       codexSource: tracked.codexSource || null,
       ...this._withTrackedContextUsage(tracked, extra),
+      ...(extra && extra.codexTokenUsage ? { codexTokenUsage: extra.codexTokenUsage } : {}),
       headless: this._isTrackedSubagent(tracked)
         ? true
         : (extra && Object.prototype.hasOwnProperty.call(extra, "headless") ? extra.headless : undefined),

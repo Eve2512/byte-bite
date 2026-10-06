@@ -161,3 +161,51 @@ html, body {
     translate: 3px 0;
   }
 }
+
+/* byte-bite tamagotchi HP bar: a thin pixel bar just under the pet's feet.
+   The render window is click-through, so this never takes input. */
+#tamagotchi-hp-bar {
+  position: absolute;
+  left: 36%;
+  width: 28%;
+  bottom: 1.5%;
+  height: max(4px, 1.6%);
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  z-index: 5;
+  image-rendering: pixelated;
+}
+
+#tamagotchi-hp-bar[hidden] {
+  display: none;
+}
+
+#tamagotchi-hp-bar .tamagotchi-hp-fill {
+  height: 100%;
+  width: 0;
+  background: #5ec46a;
+  transition: width 0.6s steps(6), background-color 0.6s;
+}
+
+#tamagotchi-hp-bar[data-level="low"] .tamagotchi-hp-fill {
+  background: #f2b33d;
+}
+
+#tamagotchi-hp-bar[data-level="critical"] .tamagotchi-hp-fill {
+  background: #e5534b;
+}
+
+#tamagotchi-hp-bar .tamagotchi-hp-zzz {
+  position: absolute;
+  right: -2.2em;
+  top: 50%;
+  transform: translateY(-50%);
+  font: bold 9px/1 monospace;
+  color: #90a4ae;
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.6);
+}
+
+#tamagotchi-hp-bar:not([data-level="fainted"]) .tamagotchi-hp-zzz {
+  display: none;
+}

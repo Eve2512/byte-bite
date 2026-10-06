@@ -149,6 +149,8 @@ const SCHEMA = {
   // byte-bite tamagotchi: opt-in, so upstream's "no token/streak tracking"
   // privacy stance holds unless the user turns it on. Stored under ~/.clawd.
   tamagotchiEnabled: { type: "boolean", default: false },
+  // Small fullness bar under the pet; only drawn while tamagotchiEnabled.
+  tamagotchiShowHpBar: { type: "boolean", default: false },
   // Default off (macOS): a fresh install runs as an accessory/agent app — pet +
   // menu-bar icon, no Dock tile. Existing users keep their Dock — a persisted
   // showDock is kept (save() bakes the full snapshot), and the v11->v12 migration

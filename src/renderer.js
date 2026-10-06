@@ -2989,3 +2989,47 @@ if (!currentDisplayedSvg && _initialIdleSvg) {
   currentIdleSvg = _initialIdleSvg;
   swapToFile(_initialIdleSvg, "idle");
 }
+
+// --- byte-bite tamagotchi: optional HP bar under the pet ---
+// The render window is click-through, so this overlay never affects hit
+// testing. Hidden unless the feature and its HP-bar pref are both on, and
+// always hidden in mini mode (incl. the walk-to-edge pre-entry).
+(function setupTamagotchiHpBar() {
+  const hpBarApi = globalThis.tamagotchiHpBar;
+  const api = window.electronAPI;
+  if (!hpBarApi || !api || typeof api.onTamagotchiSnapshot !== "function") return;
+  const view = hpBarApi.mountHpBar(document, container);
+  if (!view) return;
+  let snapshot = null;
+  let miniMode = false;
+  let timer = null;
+
+  function refresh() {
+    if (timer) { clearTimeout(timer); timer = null; }
+    const model = hpBarApi.computeHpBarModel(snapshot, Date.now(), { miniMode });
+    hpBarApi.applyHpBarModel(view, model);
+    // Interpolate decay locally; nothing to animate when hidden or fainted.
+    if (model.visible && model.level !== "fainted") {
+      timer = setTimeout(refresh, hpBarApi.REFRESH_MS);
+    }
+  }
+
+  api.onTamagotchiSnapshot((next) => {
+    snapshot = next || null;
+    refresh();
+  });
+  if (typeof api.onMiniModeChange === "function") {
+    api.onMiniModeChange((enabled) => {
+      miniMode = !!enabled;
+      refresh();
+    });
+  }
+  if (typeof api.getTamagotchiSnapshot === "function") {
+    Promise.resolve(api.getTamagotchiSnapshot()).then((initial) => {
+      if (snapshot === null && initial) {
+        snapshot = initial;
+        refresh();
+      }
+    }).catch(() => {});
+  }
+})();

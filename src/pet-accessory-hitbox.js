@@ -23,6 +23,11 @@ const BUILTIN_ACCESSORY_MOTION_PADDING = Object.freeze({
     "clawd-happy.svg": Object.freeze({ top: 12, bottom: 1.5 }),
     "clawd-idle-living.svg": Object.freeze({ left: 1.2, top: 4, right: 1.2, bottom: 2 }),
     "clawd-idle-low-battery.svg": Object.freeze({ left: 0.7, right: 0.7, bottom: 2.3 }),
+    // byte-bite tamagotchi: not Electron-measured. clawd-hungry's anchor motion
+    // (scale 1.04-1.06 x 0.94-0.92, translate 1.2-1.6) is a subset of
+    // low-battery's (1.05-1.08 x 0.95-0.92, translate 1-1.8), so its measured
+    // envelope covers it.
+    "clawd-hungry.svg": Object.freeze({ left: 0.7, right: 0.7, bottom: 2.3 }),
     "clawd-idle-look.svg": Object.freeze({ left: 1.2, right: 1.2, bottom: 0.7 }),
     "clawd-idle-yawn.svg": Object.freeze({ left: 0.8, top: 4.5, right: 0.8, bottom: 2 }),
     "clawd-mini-idle.svg": Object.freeze({ left: 3.2, top: 1.6, right: 0.2, bottom: 2.4 }),
@@ -97,6 +102,7 @@ const BUILTIN_MOUTH_ACCESSORY_MOTION_PADDING = Object.freeze({
     "clawd-idle-doze.svg": Object.freeze({ right: 0.8, bottom: 1.7 }),
     "clawd-idle-living.svg": Object.freeze({ left: 1, top: 2.8, right: 1.2, bottom: 1.4 }),
     "clawd-idle-low-battery.svg": Object.freeze({ right: 0.8, bottom: 1.7 }),
+    "clawd-hungry.svg": Object.freeze({ right: 0.8, bottom: 1.7 }),
     "clawd-working-thinking.svg": Object.freeze({ left: 0.9, top: 0.2, right: 1, bottom: 0.7 }),
     "clawd-working-typing.svg": Object.freeze({ right: 0.2, bottom: 1.3 }),
     "clawd-working-ultrathink.svg": Object.freeze({ left: 0.5, top: 0.1, right: 0.6, bottom: 0.1 }),

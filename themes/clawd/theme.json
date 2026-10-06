@@ -562,6 +562,16 @@
             "frame": { "cx": 7.5, "baseY": 6.5, "width": 16 }
           }
         },
+        "clawd-hungry.svg": {
+          "staticFrame": { "cx": 7.5, "baseY": 6.5, "width": 16 },
+          "followTarget": {
+            "id": "accessory-anchor",
+            "frame": { "cx": 7.5, "baseY": 6.5, "width": 16 }
+          }
+        },
+        "clawd-fainted.svg": {
+          "visibility": "hidden"
+        },
         "clawd-static-base.svg": {
           "staticFrame": { "cx": 7.5, "baseY": 6.5, "width": 16 }
         },
@@ -1035,6 +1045,16 @@
             "frame": { "cx": 14, "baseY": 13, "width": 5 }
           }
         },
+        "clawd-hungry.svg": {
+          "staticFrame": { "cx": 14, "baseY": 13, "width": 5 },
+          "followTarget": {
+            "id": "accessory-anchor",
+            "frame": { "cx": 14, "baseY": 13, "width": 5 }
+          }
+        },
+        "clawd-fainted.svg": {
+          "visibility": "hidden"
+        },
         "clawd-static-base.svg": {
           "staticFrame": { "cx": 14, "baseY": 13, "width": 5 }
         },
@@ -1149,6 +1169,12 @@
     ],
     "dizzy": [
       "clawd-dizzy.svg"
+    ],
+    "hungry": [
+      "clawd-hungry.svg"
+    ],
+    "fainted": [
+      "clawd-fainted.svg"
     ]
   },
   "workingTiers": [
@@ -1310,7 +1336,8 @@
   ],
   "sleepingHitboxFiles": [
     "clawd-sleeping.svg",
-    "clawd-collapse-sleep.svg"
+    "clawd-collapse-sleep.svg",
+    "clawd-fainted.svg"
   ],
   "reactions": {
     "drag": {

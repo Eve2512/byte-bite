@@ -65,6 +65,10 @@ const MINI_REQUIRED_STATES = [
   "mini-sleep",
 ];
 const MINI_OPTIONAL_PEEK_STATES = ["mini-peek-hold", "mini-sleep-peek"];
+// byte-bite tamagotchi: optional resting-mood visuals. A theme may give them
+// real files or a fallbackTo; when omitted, src/tamagotchi-mood.js keeps the
+// existing idle art (hungry) or uses the sleeping art (fainted).
+const TAMAGOTCHI_OPTIONAL_STATES = ["hungry", "fainted"];
 const VISUAL_FALLBACK_STATES = new Set([
   "error",
   "attention",
@@ -73,6 +77,7 @@ const VISUAL_FALLBACK_STATES = new Set([
   "carrying",
   "sleeping",
   "roam",
+  ...TAMAGOTCHI_OPTIONAL_STATES,
 ]);
 const SAFE_THEME_ASSET_BASENAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$/;
 const SAFE_ACCESSORY_ITEM_ID = /^[a-z][a-z0-9-]{0,31}$/;
@@ -259,7 +264,7 @@ function validateTheme(cfg) {
     const entry = normalizedStates[stateKey];
     if (!entry.fallbackTo) continue;
     if (!VISUAL_FALLBACK_STATES.has(stateKey)) {
-      errors.push(`states.${stateKey}.fallbackTo is only allowed on error/attention/notification/sweeping/carrying/sleeping/roam`);
+      errors.push(`states.${stateKey}.fallbackTo is only allowed on error/attention/notification/sweeping/carrying/sleeping/roam/hungry/fainted`);
       continue;
     }
     if (!Object.prototype.hasOwnProperty.call(normalizedStates, entry.fallbackTo)) {
@@ -293,6 +298,15 @@ function validateTheme(cfg) {
     const terminal = normalizedStates[cursor];
     if (!terminal || !hasStateFiles(terminal)) {
       errors.push(`states.${stateKey}.fallbackTo chain does not terminate in real files`);
+    }
+  }
+
+  if (cfg.states) {
+    for (const stateName of TAMAGOTCHI_OPTIONAL_STATES) {
+      if (!Object.prototype.hasOwnProperty.call(cfg.states, stateName)) continue;
+      if (!hasStateBinding(cfg.states[stateName])) {
+        errors.push(`states.${stateName} must be a non-empty array of files or define fallbackTo when declared`);
+      }
     }
   }
 
@@ -1730,6 +1744,7 @@ module.exports = {
   FULL_SLEEP_REQUIRED_STATES,
   MINI_REQUIRED_STATES,
   MINI_OPTIONAL_PEEK_STATES,
+  TAMAGOTCHI_OPTIONAL_STATES,
   VISUAL_FALLBACK_STATES,
   validateTheme,
   mergeDefaults,

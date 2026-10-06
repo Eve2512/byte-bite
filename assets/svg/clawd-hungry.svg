@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-15 -25 45 45" width="500" height="500">
+  <defs>
+    <style>
+      /* Hungry: slumped body, droopy arms and eyes, belly rumbling */
+      .slump-body {
+        transform-origin: 7.5px 13px;
+        animation: slump-breathe 4.4s infinite ease-in-out;
+      }
+
+      .slump-shadow {
+        transform-origin: 7.5px 15.5px;
+        animation: slump-shadow 4.4s infinite ease-in-out;
+      }
+
+      /* Belly growl: a tiny shiver every few seconds */
+      .growl {
+        animation: growl-shake 4.4s infinite linear;
+      }
+
+      .arm-l-droop {
+        transform-origin: 1px 10px;
+        transform: translate(0px, 1.5px) rotate(-25deg);
+      }
+
+      .arm-r-droop {
+        transform-origin: 14px 10px;
+        transform: translate(0px, 1.5px) rotate(25deg);
+      }
+
+      .eyes-droop {
+        transform-origin: 7.5px 9.5px;
+        animation: eyes-droop 6s infinite ease-in-out;
+      }
+
+      .rumble {
+        opacity: 0;
+        animation: rumble-pop 4.4s infinite ease-out;
+      }
+      .rumble-2 { animation-delay: 0.15s; }
+
+      @keyframes slump-breathe {
+        0%, 100% { transform: scale(1.04, 0.94) translate(0, 1.2px); }
+        50%      { transform: scale(1.06, 0.92) translate(0, 1.6px); }
+      }
+
+      @keyframes slump-shadow {
+        0%, 100% { transform: scaleX(1.04); opacity: 0.5; }
+        50%      { transform: scaleX(1.07); opacity: 0.45; }
+      }
+
+      @keyframes growl-shake {
+        0%, 60%, 80%, 100% { transform: translate(0, 0); }
+        64% { transform: translate(-0.3px, 0); }
+        68% { transform: translate(0.3px, 0); }
+        72% { transform: translate(-0.3px, 0); }
+        76% { transform: translate(0.3px, 0); }
+      }
+
+      @keyframes eyes-droop {
+        0%, 70%, 100% { transform: scaleY(0.45); }
+        75%           { transform: scaleY(0.1); }
+        80%           { transform: scaleY(0.45); }
+      }
+
+      @keyframes rumble-pop {
+        0%, 60%  { opacity: 0; transform: translate(0, 0); }
+        66%      { opacity: 1; transform: translate(0.4px, 0); }
+        78%      { opacity: 0.8; transform: translate(1.2px, 0); }
+        90%      { opacity: 0; transform: translate(1.8px, 0); }
+        100%     { opacity: 0; }
+      }
+    </style>
+  </defs>
+
+  <rect class="slump-shadow" x="3" y="15" width="9" height="1" fill="#000000" opacity="0.5"/>
+
+  <g id="legs" fill="#DE886D">
+    <rect x="3" y="12" width="1" height="3"/>
+    <rect x="5" y="12" width="1" height="3"/>
+    <rect x="9" y="12" width="1" height="3"/>
+    <rect x="11" y="12" width="1" height="3"/>
+  </g>
+
+  <!-- Rumble marks beside the belly -->
+  <g id="rumble-right" class="rumble" fill="#90A4AE">
+    <rect x="16" y="11" width="1" height="0.5"/>
+    <rect x="17" y="11.5" width="1" height="0.5"/>
+    <rect x="16" y="12" width="1" height="0.5"/>
+  </g>
+  <g id="rumble-left" class="rumble rumble-2" fill="#90A4AE">
+    <rect x="-2" y="11" width="1" height="0.5"/>
+    <rect x="-3" y="11.5" width="1" height="0.5"/>
+    <rect x="-2" y="12" width="1" height="0.5"/>
+  </g>
+
+  <g id="accessory-anchor" class="slump-body">
+    <g class="growl">
+      <rect id="torso" x="2" y="6" width="11" height="7" fill="#DE886D"/>
+      <g class="arm-l-droop">
+        <rect x="0" y="9" width="2" height="2" fill="#DE886D"/>
+      </g>
+      <g class="arm-r-droop">
+        <rect x="13" y="9" width="2" height="2" fill="#DE886D"/>
+      </g>
+      <!-- Sad brows slanting down to the outside -->
+      <g fill="#000000">
+        <rect x="3.5" y="7.2" width="1" height="0.4"/>
+        <rect x="4.5" y="6.9" width="1" height="0.4"/>
+        <rect x="9.5" y="6.9" width="1" height="0.4"/>
+        <rect x="10.5" y="7.2" width="1" height="0.4"/>
+      </g>
+      <g class="eyes-droop" fill="#000000">
+        <rect x="4" y="8.5" width="1" height="2"/>
+        <rect x="10" y="8.5" width="1" height="2"/>
+      </g>
+      <!-- Small open mouth -->
+      <rect x="7" y="11" width="1" height="0.6" fill="#000000"/>
+    </g>
+  </g>
+</svg>

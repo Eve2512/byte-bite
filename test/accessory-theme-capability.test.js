@@ -71,8 +71,9 @@ describe("built-in accessory capability contracts", () => {
     const usages = projectThemeVisualUsages(raw);
     const files = collectRequiredAssetFiles(raw);
 
-    assert.strictEqual(usages.length, 52);
-    assert.strictEqual(files.length, 50);
+    // 50 upstream sprites + byte-bite tamagotchi hungry/fainted states.
+    assert.strictEqual(usages.length, 54);
+    assert.strictEqual(files.length, 52);
     assert.deepStrictEqual(
       new Set(files),
       new Set(fs.readdirSync(path.join(ROOT, "assets", "svg")).filter((file) => file.endsWith(".svg"))),

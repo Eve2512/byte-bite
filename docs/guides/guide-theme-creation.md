@@ -356,6 +356,21 @@ State bindings accept the legacy array form, or an object with `files` and optio
 - Supported `fallbackTo` source states: `error`, `attention`, `notification`, `sweeping`, `carrying`, `sleeping`
 - Fallback does **not** skip the logical state. Timers, hitboxes, and state transitions still run as the original state.
 
+### Optional Tamagotchi Moods
+
+When the (opt-in) tamagotchi feature is on, a resting pet can show hunger. Both states are optional and accept files or `fallbackTo`:
+
+```json
+"states": {
+  "hungry": ["hungry.svg"],
+  "fainted": ["fainted.svg"]
+}
+```
+
+- `hungry` replaces only the resting `idle` visual. Missing → the normal idle visual (including the user's idle choice).
+- `fainted` replaces `idle`, `collapsing`, `sleeping` and `waking`. Missing → the theme's `sleeping` art.
+- Activity states, Do Not Disturb and mini mode always win over a mood. Mood art is never eye-tracked, so do not rely on `#eyes-js` inside it.
+
 ### Sleep Sequence
 
 Use `sleepSequence.mode` to choose between the full sleep path and the new direct-sleep path:

@@ -1715,6 +1715,7 @@ function syncRendererStateAfterLoad({ includeStartupRecovery = true } = {}) {
   const tintId = getPetTintIdForTheme(petTint, activeTheme && activeTheme._id);
   sendToRenderer("pet-tint-change", resolvePetTintPayload(tintId, activeTheme));
   deliverAccessorySlotsSnapshot(activeTheme);
+  _tamagotchiIpc.resend();
   sendToRenderer("low-power-idle-mode-change", lowPowerIdleMode);
   if (_mini.getMiniMode()) {
     sendToRenderer("mini-mode-change", true, _mini.getMiniEdge());
@@ -2509,6 +2510,11 @@ const _tamagotchi = require("./tamagotchi-store").createTamagotchiStore({
 });
 _settingsController.subscribeKey("tamagotchiEnabled", (enabled) => {
   _tamagotchi.setEnabled(enabled === true);
+});
+const _tamagotchiIpc = require("./tamagotchi-ipc").registerTamagotchiIpc({
+  ipcMain,
+  store: _tamagotchi,
+  sendToRenderer: (channel, snapshot) => sendToRenderer(channel, snapshot),
 });
 const TAMAGOTCHI_TICK_MS = 60 * 1000;
 const _tamagotchiTimer = setInterval(() => _tamagotchi.tick(), TAMAGOTCHI_TICK_MS);
@@ -6052,6 +6058,7 @@ if (!gotTheLock) {
     try { recapRuntime.dispose(); } catch {}
     _state.cleanup();
     clearInterval(_tamagotchiTimer);
+    try { _tamagotchiIpc.dispose(); } catch {}
     try { _tamagotchi.dispose(); } catch {}
     _tick.cleanup();
     _mini.cleanup();

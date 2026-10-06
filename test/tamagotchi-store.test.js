@@ -199,3 +199,50 @@ describe("tamagotchi meal extraction", () => {
     assert.strictEqual(extractCodexTokenUsage({ info: null }), null);
   });
 });
+
+describe("tamagotchi ipc", () => {
+  const { registerTamagotchiIpc } = require("../src/tamagotchi-ipc");
+
+  function fakeIpcMain() {
+    const handlers = new Map();
+    return {
+      handlers,
+      handle: (channel, fn) => handlers.set(channel, fn),
+      removeHandler: (channel) => handlers.delete(channel),
+    };
+  }
+
+  it("serves the snapshot on request and pushes every change to the pet renderer", () => {
+    const clock = { t: 0 };
+    const store = createTamagotchiStore({ persistPath: null, now: () => clock.t });
+    const ipcMain = fakeIpcMain();
+    const sent = [];
+    const ipc = registerTamagotchiIpc({
+      ipcMain,
+      store,
+      sendToRenderer: (channel, snapshot) => sent.push([channel, snapshot]),
+    });
+    assert.strictEqual(ipcMain.handlers.get("tamagotchi:get-snapshot")().enabled, false);
+
+    store.setEnabled(true);
+    store.feedClaudeMeals([{ id: "m1", tokens: 10000 }]);
+    assert.deepStrictEqual(sent.map(([channel]) => channel), ["tamagotchi:snapshot", "tamagotchi:snapshot"]);
+    const last = sent[sent.length - 1][1];
+    assert.strictEqual(last.enabled, true);
+    assert.ok(Math.abs(last.fullness - 0.7) < 1e-9);
+    assert.strictEqual(last.faintAfterMs, DAY);
+    assert.strictEqual(last.faintsAt, 0.7 * DAY);
+
+    ipc.resend();
+    assert.strictEqual(sent.length, 3);
+
+    ipc.dispose();
+    store.feedClaudeMeals([{ id: "m2", tokens: 10000 }]);
+    assert.strictEqual(sent.length, 3);
+    assert.strictEqual(ipcMain.handlers.has("tamagotchi:get-snapshot"), false);
+  });
+
+  it("requires its dependencies", () => {
+    assert.throws(() => registerTamagotchiIpc({}), /requires ipcMain/);
+  });
+});

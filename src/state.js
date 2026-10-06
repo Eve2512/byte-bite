@@ -14,6 +14,7 @@ const {
   resolveVisualBinding: resolveVisualBindingWithBindings,
   getSvgOverride: getSvgOverrideWithDeps,
 } = require("./state-visual-resolver");
+const { resolveTamagotchiRestVisual } = require("./tamagotchi-mood");
 const {
   getStaleSessionDecision,
   isWorkingLikeState,
@@ -804,7 +805,11 @@ function applyState(state, svgOverride, options = {}) {
   const userIdle = (state === "idle" && !svgOverride && typeof ctx.getIdleVisualChoice === "function")
     ? ctx.getIdleVisualChoice()
     : null;
-  const svg = svgOverride || userIdle || resolveVisualBinding(state);
+  // byte-bite tamagotchi: a hungry/fainted pet rests on mood art. Only
+  // resting states are eligible (see src/tamagotchi-mood.js); null keeps the
+  // existing visual untouched.
+  const moodSvg = getTamagotchiRestVisual(state, applyOptions);
+  const svg = moodSvg || svgOverride || userIdle || resolveVisualBinding(state);
   currentSvg = svg;
 
   // Force eye resend after SVG load completes (~300ms)
@@ -3574,6 +3579,25 @@ function setUpdateVisualState(kind) {
   return updateVisualState;
 }
 
+function getTamagotchiRestVisual(state, options = {}) {
+  if (typeof ctx.getTamagotchiMood !== "function") return null;
+  let mood = null;
+  try { mood = ctx.getTamagotchiMood(); } catch { mood = null; }
+  if (!mood) return null;
+  return resolveTamagotchiRestVisual({
+    mood,
+    state,
+    miniMode: !!ctx.miniMode,
+    doNotDisturb: !!ctx.doNotDisturb,
+    settingsPreview: options.settingsPreview === true,
+    stateBindings: STATE_BINDINGS,
+    resolveBinding: resolveVisualBinding,
+    eyeTrackedStates: theme && theme.eyeTracking && theme.eyeTracking.enabled
+      ? theme.eyeTracking.states
+      : null,
+  });
+}
+
 function getSvgOverride(state) {
   return getSvgOverrideWithDeps(state, {
     updateVisualState,
@@ -3716,7 +3740,7 @@ return {
   shouldDropForDnd,
   enableDoNotDisturb, disableDoNotDisturb,
   startStaleCleanup, stopStaleCleanup, startWakePoll, stopWakePoll,
-  getSvgOverride, cleanStaleSessions, startStartupRecovery, refreshTheme,
+  getSvgOverride, getTamagotchiRestVisual, cleanStaleSessions, startStartupRecovery, refreshTheme,
   detectRunningAgentProcesses, buildSessionSnapshot,
   emitSessionSnapshot, broadcastSessionSnapshot, getLastSessionSnapshot,
   getActiveSessionAliasKeys,

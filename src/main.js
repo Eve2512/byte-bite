@@ -2519,13 +2519,31 @@ _settingsController.subscribeKey("kimiQuotaCollectionEnabled", (enabled) => {
 
 // ── Tamagotchi (byte-bite): agents' fresh tokens feed the pet ──
 // Opt-in; the store neither feeds nor persists while the pref is off.
+const TAMAGOTCHI_HOUR_MS = 60 * 60 * 1000;
+function getTamagotchiConfigFromPrefs() {
+  const hours = Number(_settingsController.get("tamagotchiFaintAfterHours"));
+  const tokens = Number(_settingsController.get("tamagotchiTokensPerBelly"));
+  return {
+    faintAfterMs: (Number.isFinite(hours) && hours > 0 ? hours : 24) * TAMAGOTCHI_HOUR_MS,
+    tokensPerFullBelly: Number.isFinite(tokens) && tokens > 0 ? tokens : 100000,
+  };
+}
 const _tamagotchi = require("./tamagotchi-store").createTamagotchiStore({
   enabled: _settingsController.get("tamagotchiEnabled") === true,
+  ...getTamagotchiConfigFromPrefs(),
   logWarn: (...args) => console.warn(...args),
 });
 _settingsController.subscribeKey("tamagotchiEnabled", (enabled) => {
   _tamagotchi.setEnabled(enabled === true);
 });
+_settingsController.subscribeKey("tamagotchiFaintAfterHours", () => {
+  _tamagotchi.configure(getTamagotchiConfigFromPrefs());
+});
+_settingsController.subscribeKey("tamagotchiTokensPerBelly", () => {
+  _tamagotchi.configure(getTamagotchiConfigFromPrefs());
+});
+// Live stats for an open Settings window (no-op when it is closed).
+_tamagotchi.onChange((snapshot) => broadcastSettingsWindow("settings:tamagotchi-changed", snapshot));
 const _tamagotchiIpc = require("./tamagotchi-ipc").registerTamagotchiIpc({
   ipcMain,
   store: _tamagotchi,
@@ -5066,6 +5084,7 @@ const settingsIpcRuntime = registerSettingsIpc({
   path,
   settingsController: _settingsController,
   recapRuntime,
+  tamagotchi: _tamagotchi,
   getQuotaSourceCount: () => _state.getQuotaSourceCount(),
   getQuotaRingProviders: () => _ringGeom.listQuotaRingProviders(
     _state.buildSessionSnapshot(),

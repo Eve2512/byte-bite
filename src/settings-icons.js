@@ -84,6 +84,13 @@ const ICONS = {
     '<circle cx="17.6" cy="10.2" r="1.7"/>' +
     '</svg>',
 
+  // egg (byte-bite tamagotchi)
+  tamagotchi:
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="100%" height="100%">' +
+    '<path d="M12 3c-3.6 0-6.5 5.2-6.5 9.6A6.5 6.5 0 0 0 12 21a6.5 6.5 0 0 0 6.5-8.4C18.5 8.2 15.6 3 12 3Z"/>' +
+    '<path d="M9.5 13.5h.01M14.5 13.5h.01M10.5 16.5c.9.6 2.1.6 3 0"/>' +
+    '</svg>',
+
   // info circle
   about:
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="100%" height="100%">' +

@@ -92,18 +92,27 @@ function createTamagotchiStore(options = {}) {
   let loaded = false;
 
   function configure(config = {}) {
+    let changed = false;
     if (config.faintAfterMs !== undefined) {
       const ms = finiteOr(config.faintAfterMs, DEFAULT_FAINT_AFTER_MS);
-      if (ms > 0) {
+      if (ms > 0 && ms !== faintAfterMs) {
         // Keep the current fullness: settle on the old rate, then switch.
-        settle(now());
+        // While disabled the timeline is frozen, so there is nothing to settle.
+        if (enabled) settle(now());
         faintAfterMs = ms;
+        changed = true;
       }
     }
     if (config.tokensPerFullBelly !== undefined) {
       const n = finiteOr(config.tokensPerFullBelly, DEFAULT_TOKENS_PER_FULL_BELLY);
-      if (n > 0) tokensPerFullBelly = n;
+      if (n > 0 && n !== tokensPerFullBelly) {
+        tokensPerFullBelly = n;
+        changed = true;
+      }
     }
+    // faintsAt / faintAfterMs in the snapshot moved: let renderers re-sync.
+    if (changed && pet) emit();
+    return changed;
   }
 
   function load() {

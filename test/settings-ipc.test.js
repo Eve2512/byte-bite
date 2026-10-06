@@ -219,6 +219,7 @@ function createHarness(overrides = {}) {
     path: overrides.path || path,
     settingsController,
     recapRuntime: overrides.recapRuntime,
+    tamagotchi: overrides.tamagotchi,
     themeLoader,
     codexPetMain,
     officialThemeMain: overrides.officialThemeMain,
@@ -395,6 +396,26 @@ test("recap IPC exposes only bounded queries and explicit clear to the trusted S
     message: "untrusted settings sender",
   });
   assert.equal(calls.length, 2);
+});
+
+test("tamagotchi IPC exposes stats and reset only to the trusted Settings window", async () => {
+  const calls = [];
+  const harness = createHarness({
+    tamagotchi: {
+      snapshot() { calls.push("snapshot"); return { enabled: true, stage: "hungry" }; },
+      reset() { calls.push("reset"); },
+    },
+  });
+  assert.deepStrictEqual(await harness.ipcMain.invoke("settings:tamagotchi-get"), {
+    status: "ok",
+    snapshot: { enabled: true, stage: "hungry" },
+  });
+  assert.deepStrictEqual(await harness.ipcMain.invoke("settings:tamagotchi-reset"), { status: "ok" });
+  harness.ipcMain.invokeEvent = { sender: {}, senderFrame: null };
+  assert.equal((await harness.ipcMain.invoke("settings:tamagotchi-reset")).message, "untrusted settings sender");
+  assert.deepStrictEqual(calls, ["snapshot", "reset"]);
+  const missing = createHarness();
+  assert.equal((await missing.ipcMain.invoke("settings:tamagotchi-get")).reason, "runtime-unavailable");
 });
 
 test("settings IPC reads, selects, and clears the shared roam fence", async () => {

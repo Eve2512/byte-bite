@@ -99,6 +99,7 @@ Settings 是独立 `BrowserWindow`，采用 5 层结构：
 - `shortcuts` 使用 Electron accelerator token；prefs v15 → v16 会先把旧配置中的字面 `Control` 迁移为 `CommandOrControl`，再允许新录制的 macOS 原生 `⌃ Control` 保持为独立 token。Windows/Linux 会在危险组合检查、加载去重、设置冲突和显示时把两者视为同一个实体 Control 键，macOS 则始终保持 ⌘ / ⌃ 独立
 - `prefs.load()` 返回 `locked && recovered` 表示文件字节从未成功读取：controller 会在 validator / command / 外部 effect 之前拒绝用户 mutation，agent runtime 的启动同步、monitor、state/permission ingress 与 session recovery 全部 fail closed；修复文件访问并重启后才恢复。可读的 future-version `locked && !recovered` 继续保持既有的当前进程内存可改、磁盘不覆盖语义
 - `idleVisual` 是 per-theme 文件映射；缺失键表示使用主题默认，主题升级删除已选文件或删除主题时会安静回退，不改变逻辑状态
+- Tamagotchi tab（byte-bite fork）：`tamagotchiEnabled` / `tamagotchiShowHpBar` / `tamagotchiFaintAfterHours`（8/24/72）/ `tamagotchiTokensPerBelly` 走普通 controller 写入；main 用 `subscribeKey` 调 `_tamagotchi.configure()`；统计与重置走 owner-gated 的 `settings:tamagotchi-get` / `settings:tamagotchi-reset`，变更经 `settings:tamagotchi-changed` 推送
 - About tab 使用 inline SVG，而不是 `<object>`，因为 `settings.html` CSP 是 `default-src 'none'`
 
 ### Bubble display and placement

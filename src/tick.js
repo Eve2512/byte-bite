@@ -88,8 +88,18 @@ refreshTheme();
 // the theme's follow sprite otherwise. SVG_IDLE_FOLLOW itself stays pure so the
 // eye-tracking gate below only fires on the real follow sprite.
 function idleRestSvg() {
+  // byte-bite tamagotchi: a hungry/fainted pet rests on its mood art.
+  const mood = typeof ctx.getTamagotchiRestVisual === "function" ? ctx.getTamagotchiRestVisual("idle") : null;
+  if (mood) return mood;
   const choice = typeof ctx.getIdleVisualChoice === "function" ? ctx.getIdleVisualChoice() : null;
   return choice || SVG_IDLE_FOLLOW;
+}
+
+// byte-bite tamagotchi: a fainted pet is already lying down — no idle-look
+// animations and no yawn/doze build-up; it settles straight into sleeping.
+function isTamagotchiFainted() {
+  if (typeof ctx.getTamagotchiMood !== "function") return false;
+  try { return ctx.getTamagotchiMood() === "fainted"; } catch { return false; }
 }
 
 function idleEasterEggKey(egg) {
@@ -399,7 +409,7 @@ function runMainTickOnce() {
       if (!hasTriggeredYawn && elapsed >= MOUSE_SLEEP_TIMEOUT) {
         hasTriggeredYawn = true;
         if (!isMouseIdle && !shouldSuppressPassiveIpc()) ctx.sendToRenderer("eye-move", 0, 0);
-        if (SLEEP_MODE === "direct") {
+        if (SLEEP_MODE === "direct" || isTamagotchiFainted()) {
           if (ctx.currentState === "idle") ctx.setState("sleeping");
         } else {
           yawnDelayTimer = setTimeout(() => {
@@ -422,6 +432,10 @@ function runMainTickOnce() {
         && !idleLookPlayed
         && elapsed >= MOUSE_IDLE_TIMEOUT
       ) {
+        if (isTamagotchiFainted()) {
+          idleLookPlayed = true;
+          return nextDelay();
+        }
         const choice = typeof ctx.getIdleVisualChoice === "function" ? ctx.getIdleVisualChoice() : null;
         const pool = choice ? IDLE_ANIMS.filter((a) => a.svg !== choice) : IDLE_ANIMS;
         const easterEgg = chooseIdleEasterEgg();

@@ -2272,6 +2272,18 @@ function getIdleVisualChoice() {
   return resolveIdleVisualChoice(getActiveTheme(), _settingsController.get("idleVisual"));
 }
 
+// byte-bite tamagotchi: "hungry" | "fainted" | null, cached from the hunger
+// store's change events (wired further down, next to the store). null while
+// the feature is off, so the state machine behaves exactly as upstream.
+let tamagotchiMood = null;
+function getTamagotchiMood() {
+  return tamagotchiMood;
+}
+function getTamagotchiInitialIdleVisual() {
+  if (!tamagotchiMood) return null;
+  try { return _state.getTamagotchiRestVisual("idle"); } catch { return null; }
+}
+
 // Renderer theme config with pre-IPC choices stamped on — the first media load
 // should already use the selected idle visual and tint instead of briefly
 // showing theme defaults. getRendererConfig() returns a fresh object, safe to
@@ -2284,6 +2296,8 @@ function buildRendererThemeConfig(accessorySnapshot = null) {
     const tintId = getPetTintIdForTheme(tintSelections, activeTheme && activeTheme._id);
     const canonical = accessorySnapshot || getPetAccessorySlotsSnapshot(activeTheme);
     cfg.idleDefaultVisual = getIdleVisualChoice();
+    const tamagotchiIdleVisual = getTamagotchiInitialIdleVisual();
+    if (tamagotchiIdleVisual) cfg.idleDefaultVisual = tamagotchiIdleVisual;
     cfg.petTintPayload = resolvePetTintPayload(tintId, activeTheme);
     if (canonical) {
       cfg.accessorySlots = {
@@ -2446,6 +2460,7 @@ const _stateCtx = {
     if (sessionAutomationCoordinator) sessionAutomationCoordinator.onSessionLifecycleEnd(payload);
   },
   getIdleVisualChoice,
+  getTamagotchiMood,
   isAgentEnabled: (agentId) => _runtimeAgentGate.isAgentEnabled(agentId),
   hasAnyEnabledAgent: () => _runtimeAgentGate.hasAnyEnabledAgent(),
 };
@@ -2516,6 +2531,26 @@ const _tamagotchiIpc = require("./tamagotchi-ipc").registerTamagotchiIpc({
   store: _tamagotchi,
   sendToRenderer: (channel, snapshot) => sendToRenderer(channel, snapshot),
 });
+// Mood changes (hungry / fainted / fed) repaint a resting pet right away;
+// active states pick the mood up on their next natural return to rest.
+const { moodFromSnapshot: tamagotchiMoodFromSnapshot } = require("./tamagotchi-mood");
+const TAMAGOTCHI_REFRESH_STATES = new Set(["idle", "collapsing", "sleeping"]);
+function refreshTamagotchiRestVisual() {
+  if (_mini.getMiniMode() || doNotDisturb) return;
+  const current = _state.getCurrentState();
+  if (!TAMAGOTCHI_REFRESH_STATES.has(current)) return;
+  _state.applyState(current, current === "idle" ? _state.getSvgOverride("idle") : undefined);
+}
+function syncTamagotchiMood(snapshot) {
+  const next = tamagotchiMoodFromSnapshot(snapshot);
+  if (next === tamagotchiMood) return;
+  tamagotchiMood = next;
+  try { refreshTamagotchiRestVisual(); } catch (err) {
+    console.warn("Clawd: tamagotchi mood refresh failed:", err && err.message);
+  }
+}
+if (_tamagotchi.isEnabled()) tamagotchiMood = tamagotchiMoodFromSnapshot(_tamagotchi.snapshot());
+_tamagotchi.onChange(syncTamagotchiMood);
 const TAMAGOTCHI_TICK_MS = 60 * 1000;
 const _tamagotchiTimer = setInterval(() => _tamagotchi.tick(), TAMAGOTCHI_TICK_MS);
 if (typeof _tamagotchiTimer.unref === "function") _tamagotchiTimer.unref();
@@ -2645,6 +2680,8 @@ const _tickCtx = {
   setState,
   applyState,
   getIdleVisualChoice,
+  getTamagotchiMood,
+  getTamagotchiRestVisual: (state) => _state.getTamagotchiRestVisual(state),
   getEffectiveAccessoryIds: getEffectivePetAccessoryIds,
   miniPeekIn: (mode) => miniPeekIn(mode),
   miniPeekOut: () => miniPeekOut(),

@@ -2530,7 +2530,12 @@ const _tamagotchiIpc = require("./tamagotchi-ipc").registerTamagotchiIpc({
   ipcMain,
   store: _tamagotchi,
   sendToRenderer: (channel, snapshot) => sendToRenderer(channel, snapshot),
+  decorate: (snapshot) => ({
+    ...snapshot,
+    showHpBar: _settingsController.get("tamagotchiShowHpBar") === true,
+  }),
 });
+_settingsController.subscribeKey("tamagotchiShowHpBar", () => _tamagotchiIpc.resend());
 // Mood changes (hungry / fainted / fed) repaint a resting pet right away;
 // active states pick the mood up on their next natural return to rest.
 const { moodFromSnapshot: tamagotchiMoodFromSnapshot } = require("./tamagotchi-mood");

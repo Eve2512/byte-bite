@@ -307,6 +307,7 @@ const updateRegistry = {
   lang: requireEnum("lang", ["en", "zh", "zh-TW", "ko", "ja", "pt-BR", "es"]),
   recapEnabled: requireBoolean("recapEnabled"),
   tamagotchiEnabled: requireBoolean("tamagotchiEnabled"),
+  tamagotchiShowHpBar: requireBoolean("tamagotchiShowHpBar"),
   tutorialSeen: requireBoolean("tutorialSeen"),
   soundMuted: requireBoolean("soundMuted"),
   soundVolume: requireNumberInRange("soundVolume", 0, 1),

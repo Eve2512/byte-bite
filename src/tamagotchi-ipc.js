@@ -20,16 +20,19 @@ function registerTamagotchiIpc(options = {}) {
   const ipcMain = requiredDependency(options.ipcMain, "ipcMain");
   const store = requiredDependency(options.store, "store");
   const sendToRenderer = requiredDependency(options.sendToRenderer, "sendToRenderer");
+  // Optional: stamp renderer-only display prefs (e.g. showHpBar) on the
+  // outgoing snapshot without teaching the store about UI settings.
+  const decorate = typeof options.decorate === "function" ? options.decorate : (snapshot) => snapshot;
 
-  ipcMain.handle(GET_SNAPSHOT_CHANNEL, () => store.snapshot());
+  ipcMain.handle(GET_SNAPSHOT_CHANNEL, () => decorate(store.snapshot()));
   const unsubscribe = store.onChange((snapshot) => {
-    sendToRenderer(SNAPSHOT_CHANNEL, snapshot);
+    sendToRenderer(SNAPSHOT_CHANNEL, decorate(snapshot));
   });
 
   return {
-    // Re-push after a renderer (re)load or theme reload drops its state.
+    // Re-push after a renderer (re)load, theme reload or display-pref change.
     resend() {
-      sendToRenderer(SNAPSHOT_CHANNEL, store.snapshot());
+      sendToRenderer(SNAPSHOT_CHANNEL, decorate(store.snapshot()));
     },
     dispose() {
       unsubscribe();

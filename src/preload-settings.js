@@ -50,6 +50,7 @@ const textScaleContextListeners = new Set();
 const sizeContextListeners = new Set();
 const agentActivityListeners = new Set();
 const recapChangedListeners = new Set();
+const tamagotchiChangedListeners = new Set();
 const updateCheckStatusListeners = new Set();
 const requestedTabListeners = new Set();
 const officialThemeProgressListeners = new Set();
@@ -107,6 +108,11 @@ ipcRenderer.on("settings:recap-changed", () => {
     try { cb(); } catch (err) { console.warn("recap changed listener threw:", err); }
   }
 });
+ipcRenderer.on("settings:tamagotchi-changed", (_event, snapshot) => {
+  for (const cb of tamagotchiChangedListeners) {
+    try { cb(snapshot); } catch (err) { console.warn("tamagotchi changed listener threw:", err); }
+  }
+});
 ipcRenderer.on("settings:update-check-status", (_event, payload) => {
   for (const cb of updateCheckStatusListeners) {
     try { cb(payload); } catch (err) { console.warn("update check status listener threw:", err); }
@@ -132,6 +138,13 @@ contextBridge.exposeInMainWorld("settingsAPI", {
   getSnapshot: () => ipcRenderer.invoke("settings:get-snapshot"),
   queryRecap: (period) => ipcRenderer.invoke("settings:recap-query", period),
   clearRecap: () => ipcRenderer.invoke("settings:recap-clear"),
+  getTamagotchi: () => ipcRenderer.invoke("settings:tamagotchi-get"),
+  resetTamagotchi: () => ipcRenderer.invoke("settings:tamagotchi-reset"),
+  onTamagotchiChanged: (cb) => {
+    if (typeof cb !== "function") return () => {};
+    tamagotchiChangedListeners.add(cb);
+    return () => tamagotchiChangedListeners.delete(cb);
+  },
   consumeRequestedTab: () => {
     const tab = pendingRequestedTab;
     pendingRequestedTab = null;

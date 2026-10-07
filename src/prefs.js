@@ -152,6 +152,15 @@ const SCHEMA = {
   tamagotchiEnabled: { type: "boolean", default: false },
   // Small fullness bar under the pet; only drawn while tamagotchiEnabled.
   tamagotchiShowHpBar: { type: "boolean", default: false },
+  // Hours a full belly lasts, and fresh tokens that fill an empty one.
+  // Fixed choices keep the Settings UI simple; keep in sync with
+  // settings-actions.js and settings-tab-tamagotchi.js.
+  tamagotchiFaintAfterHours: { type: "number", default: 24, enum: [8, 24, 72] },
+  tamagotchiTokensPerBelly: {
+    type: "number",
+    default: 100000,
+    enum: [25000, 50000, 100000, 250000, 500000, 1000000],
+  },
   // Default off (macOS): a fresh install runs as an accessory/agent app — pet +
   // menu-bar icon, no Dock tile. Existing users keep their Dock — a persisted
   // showDock is kept (save() bakes the full snapshot), and the v11->v12 migration

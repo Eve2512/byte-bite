@@ -15,6 +15,7 @@ const SIDEBAR_TABS = [
   { id: "discord-presence", labelKey: "sidebarDiscordPresence", available: true },
   { id: "remote-ssh", labelKey: "sidebarRemoteSsh", available: true },
   { id: "recap", labelKey: "sidebarRecap", available: true },
+  { id: "tamagotchi", labelKey: "sidebarTamagotchi", available: true },
   { id: "about", labelKey: "sidebarAbout", available: true },
 ];
 
@@ -94,6 +95,7 @@ globalThis.ClawdSettingsTabShortcuts.init(core);
 if (globalThis.ClawdSettingsTabTelegramApproval) globalThis.ClawdSettingsTabTelegramApproval.init(core);
 if (globalThis.ClawdSettingsTabDiscordPresence) globalThis.ClawdSettingsTabDiscordPresence.init(core);
 if (globalThis.ClawdSettingsTabRecap) globalThis.ClawdSettingsTabRecap.init(core);
+if (globalThis.ClawdSettingsTabTamagotchi) globalThis.ClawdSettingsTabTamagotchi.init(core);
 globalThis.ClawdSettingsTabAbout.init(core);
 if (globalThis.ClawdSettingsTabRemoteSsh) globalThis.ClawdSettingsTabRemoteSsh.init(core);
 if (globalThis.ClawdSettingsTabMobile) globalThis.ClawdSettingsTabMobile.init(core);

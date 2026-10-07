@@ -308,6 +308,11 @@ const updateRegistry = {
   recapEnabled: requireBoolean("recapEnabled"),
   tamagotchiEnabled: requireBoolean("tamagotchiEnabled"),
   tamagotchiShowHpBar: requireBoolean("tamagotchiShowHpBar"),
+  tamagotchiFaintAfterHours: requireEnum("tamagotchiFaintAfterHours", [8, 24, 72]),
+  tamagotchiTokensPerBelly: requireEnum(
+    "tamagotchiTokensPerBelly",
+    [25000, 50000, 100000, 250000, 500000, 1000000]
+  ),
   tutorialSeen: requireBoolean("tutorialSeen"),
   soundMuted: requireBoolean("soundMuted"),
   soundVolume: requireNumberInRange("soundVolume", 0, 1),

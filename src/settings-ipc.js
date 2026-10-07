@@ -484,6 +484,31 @@ function registerSettingsIpc(options = {}) {
       return { status: "error", reason: "clear-failed" };
     }
   });
+  // byte-bite tamagotchi: read-only stats + reset for the Settings tab.
+  handle("settings:tamagotchi-get", (event) => {
+    const rejected = rejectUntrustedSettingsEvent(event);
+    if (rejected) return rejected;
+    const store = options.tamagotchi;
+    if (!store || typeof store.snapshot !== "function") {
+      return { status: "error", reason: "runtime-unavailable" };
+    }
+    try { return { status: "ok", snapshot: store.snapshot() }; }
+    catch { return { status: "error", reason: "query-failed" }; }
+  });
+  handle("settings:tamagotchi-reset", (event) => {
+    const rejected = rejectUntrustedSettingsEvent(event);
+    if (rejected) return rejected;
+    const store = options.tamagotchi;
+    if (!store || typeof store.reset !== "function") {
+      return { status: "error", reason: "runtime-unavailable" };
+    }
+    try {
+      store.reset();
+      return { status: "ok" };
+    } catch {
+      return { status: "error", reason: "reset-failed" };
+    }
+  });
   // Distinct quota-reporting sources (this machine + WSL / SSH remotes). The
   // General tab uses it to hide the "merge across machines" switch when it is
   // a single-machine no-op.

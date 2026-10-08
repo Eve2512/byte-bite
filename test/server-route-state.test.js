@@ -4,6 +4,8 @@ const { describe, it } = require("node:test");
 const assert = require("node:assert");
 const { EventEmitter } = require("node:events");
 const path = require("node:path");
+const fs = require("node:fs");
+const os = require("node:os");
 
 const {
   CLAWD_SERVER_HEADER,
@@ -199,7 +201,137 @@ describe("server-route-state health", () => {
   });
 });
 
+describe("server-route-state Codex ambient-suggestion marker", () => {
+  const AMBIENT_RAW = "codex:019d23d4-f1a9-7633-b9c7-758327137228";
+
+  function ambientBody(extra = {}) {
+    return JSON.stringify({
+      state: "thinking",
+      event: "UserPromptSubmit",
+      agent_id: "codex",
+      hook_source: "codex-official",
+      session_id: AMBIENT_RAW,
+      codex_internal_thread: "ambient_suggestions",
+      source_pid: 42,
+      ...extra,
+    });
+  }
+
+  it("issue #1073 follow-up: passes a local official Codex ambient marker through to updateSession", async () => {
+    const res = await callStatePost(ambientBody());
+    assert.strictEqual(res.calls.updateSession.length, 1);
+    assert.strictEqual(res.calls.updateSession[0][3].codexInternalThread, "ambient_suggestions");
+  });
+
+  it("issue #1073 follow-up: drops the ambient marker for a remote Codex profile", async () => {
+    const res = await callStatePost(ambientBody(), {
+      options: { remoteProfile: { profileId: "remote-1", displayHost: "remote-host" } },
+    });
+    assert.strictEqual(res.calls.updateSession.length, 1);
+    assert.strictEqual(res.calls.updateSession[0][3].codexInternalThread, undefined);
+  });
+
+  it("issue #1073 follow-up: drops the ambient marker for another agent", async () => {
+    const res = await callStatePost(ambientBody({ agent_id: "claude-code" }));
+    assert.strictEqual(res.calls.updateSession.length, 1);
+    assert.strictEqual(res.calls.updateSession[0][3].codexInternalThread, undefined);
+  });
+});
+
 describe("server-route-state POST", () => {
+  it("rejects a parsed old-turn compaction after HTTP hooks start a newer Codex turn", async () => {
+    const CodexLogMonitor = require("../agents/codex-log-monitor");
+    const codexConfig = require("../agents/codex");
+    class ManualCodexLogMonitor extends CodexLogMonitor { start() {} }
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "clawd-codex-delayed-compaction-"));
+    const fileName = "rollout-2026-03-25T15-10-51-019d23d4-f1a9-7633-b9c7-758327137228.jsonl";
+    const filePath = path.join(dir, fileName);
+    const rawId = "codex:019d23d4-f1a9-7633-b9c7-758327137228", sid = localSessionKey(rawId);
+    const changes = [], sounds = [];
+    const api = makeMetadataStateRuntime({
+      theme: { ...metadataContractTheme, timings: { ...metadataContractTheme.timings, minDisplay: {} } },
+      sendToRenderer: (...args) => changes.push(args), playSound: name => sounds.push(name), processKill: () => true,
+    });
+    const runtime = createAgentRuntimeMain({
+      loadCodexLogMonitor: () => ManualCodexLogMonitor,
+      loadCodexAgent: () => ({ ...codexConfig, logConfig: { ...codexConfig.logConfig, sessionDir: dir } }),
+      getStateRuntime: () => api, updateSession: (...args) => api.updateSession(...args),
+    });
+    const post = (event, state, turnId) => callStatePost(JSON.stringify({
+      agent_id: "codex", session_id: rawId, hook_source: "codex-official", event, state, turn_id: turnId,
+    }), { ctx: { sessions: api.sessions, updateSession: (...args) => runtime.updateSessionFromServer(...args) } });
+    const appendCompaction = turnId => fs.appendFileSync(filePath, JSON.stringify({ type: "event_msg",
+      payload: { type: "item_completed", turn_id: turnId, item: { type: "ContextCompaction", id: "compact-item" } },
+    }) + "\n");
+    try {
+      await post("UserPromptSubmit", "thinking", "old-turn");
+      await post("Stop", "idle", "old-turn");
+      const monitor = runtime.startCodexLogMonitor();
+      monitor._findCodexWriterPid = () => null;
+      fs.writeFileSync(filePath, JSON.stringify({ type: "event_msg", payload: { type: "task_started", turn_id: "old-turn" } }) + "\n");
+      monitor._pollFile(filePath, fileName);
+      await post("UserPromptSubmit", "thinking", "new-turn");
+      await post("PreToolUse", "working", "new-turn");
+      const before = JSON.stringify(api.buildSessionSnapshot());
+      changes.length = 0; sounds.length = 0;
+      appendCompaction("old-turn");
+      monitor._pollFile(filePath, fileName);
+      assert.equal(api.sessions.get(sid).state, "working");
+      assert.equal(JSON.stringify(api.buildSessionSnapshot()), before);
+      assert.deepEqual(changes, []);
+      assert.deepEqual(sounds, []);
+      appendCompaction("new-turn");
+      monitor._pollFile(filePath, fileName);
+      assert.equal(api.getCurrentState(), "sweeping", "current-turn compaction must still pass");
+    } finally {
+      runtime.cleanup(); api.cleanup(); fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+  it("backfills queued terminal-before-Pre accounting without consuming a newer plan approval", async () => {
+    const sink = createMemoryRecapSink(), sounds = [], pendingPermissions = [];
+    const api = makeClaudePhaseStateRuntime({ recapSink: sink, playSound: name => sounds.push(name), pendingPermissions });
+    const rawId = "queued-stop-before-pre", sid = localSessionKey(rawId);
+    const post = (name, extra = {}) => callStatePost(JSON.stringify(buildStateBody(name,
+      { session_id: rawId, prompt_id: "queued", ...extra }, () => ({ pid: null }))), { ctx: {
+      sessions: api.sessions, pendingPermissions,
+      observeClaudeToolPhase: api.observeClaudeToolPhase, updateSession: api.updateSession,
+    } });
+    try {
+      await post("UserPromptSubmit", { prompt_id: "original" }); await post("Stop", { prompt_id: "original" });
+      await post("PostToolBatch", { tool_calls: [{ tool_use_id: "late-agent" }] });
+      await post("Stop", { last_assistant_message: "fixture answer" });
+      await post("UserPromptSubmit", { prompt_id: "new" });
+      const pending = makePlanPermission(rawId); pendingPermissions.push(pending);
+      const before = JSON.stringify(api.buildSessionSnapshot()), soundCount = sounds.length;
+      const result = await post("PreToolUse", { tool_use_id: "late-agent", tool_name: "Read" });
+      await post("PreToolUse", { tool_use_id: "late-agent", tool_name: "Read" });
+      assert.equal(sink.snapshot().filter(event => event.metrics.includes("tool-call")).length, 1);
+      assert.equal(JSON.stringify(api.buildSessionSnapshot()), before);
+      assert.equal(sounds.length, soundCount); assert.equal(result.calls.resolved.length, 0);
+      assert.strictEqual(pendingPermissions[0], pending);
+    } finally { api.cleanup(); }
+  });
+
+  it("does not revive completed native child activity through a late synthetic hook", async () => {
+    const api = makeClaudePhaseStateRuntime(), rawId = "native-stop-late-agent", sid = localSessionKey(rawId);
+    const post = (name, extra = {}) => callStatePost(JSON.stringify(buildStateBody(name,
+      { session_id: rawId, prompt_id: "same", ...extra }, () => ({ pid: null }))), { ctx: {
+      sessions: api.sessions, observeClaudeToolPhase: api.observeClaudeToolPhase, updateSession: api.updateSession,
+    } });
+    try {
+      await post("UserPromptSubmit");
+      await post("PostToolBatch", { tool_calls: [{ tool_use_id: "agent-tool" }] });
+      await post("PostToolUse", { tool_use_id: "agent-tool", tool_name: "Agent" });
+      await post("SubagentStart", { agent_id: "child-a", agent_type: "Explore" });
+      await post("SubagentStop", { agent_id: "child-a", agent_type: "Explore" });
+      const before = JSON.stringify(api.buildSessionSnapshot());
+      await post("PreToolUse", { tool_use_id: "agent-tool", tool_name: "Agent" });
+      assert.equal(api.sessions.get(sid).state, "thinking");
+      assert.equal(api.sessions.get(sid).subagentTracker.legacyFloor, false);
+      assert.equal(JSON.stringify(api.buildSessionSnapshot()), before);
+    } finally { api.cleanup(); }
+  });
+
   it("does not consume Claude phase evidence for disabled, metadata-only or invalid-state requests", async () => {
     const base = { agent_id: "claude-code", session_id: "batch-session", state: "thinking",
       event: "UserPromptSubmit", prompt_id: "prompt-1" };
@@ -449,6 +581,31 @@ describe("server-route-state POST", () => {
       await post("PreToolUse", { tool_use_id: "next-tool", tool_name: "Read" });
       await post("PostToolBatch", { tool_calls: [{ tool_use_id: "next-tool" }] });
       assert.equal(api.sessions.get(sid).state, "thinking");
+      await post("Stop");
+      assert.equal(api.deriveSessionBadge(api.sessions.get(sid)), "done");
+    } finally { api.cleanup(); }
+  });
+
+  it("recovers a Claude tool result that arrives before its own start through /state", async () => {
+    const sink = createMemoryRecapSink(), pendingPermissions = [];
+    const api = makeClaudePhaseStateRuntime({ recapSink: sink, pendingPermissions });
+    const rawId = "result-before-start", sid = localSessionKey(rawId);
+    const post = (name, extra = {}) => callStatePost(JSON.stringify(buildStateBody(name,
+      { session_id: rawId, prompt_id: "open", ...extra }, () => ({ pid: null }))), { ctx: {
+      sessions: api.sessions, pendingPermissions,
+      observeClaudeToolPhase: api.observeClaudeToolPhase, updateSession: api.updateSession,
+    } });
+    try {
+      await post("UserPromptSubmit");
+      await post("PostToolUse", { tool_use_id: "first-tool", tool_name: "Read" });
+      await post("PreToolUse", { tool_use_id: "first-tool", tool_name: "Read" });
+      await post("PostToolBatch", { tool_calls: [{ tool_use_id: "first-tool" }] });
+      assert.equal(api.sessions.get(sid).state, "thinking");
+      await post("PreToolUse", { tool_use_id: "second-tool", tool_name: "Read" });
+      await post("PostToolUse", { tool_use_id: "second-tool", tool_name: "Read" });
+      await post("PostToolBatch", { tool_calls: [{ tool_use_id: "second-tool" }] });
+      assert.equal(api.sessions.get(sid).state, "thinking");
+      assert.equal(sink.snapshot().filter(event => event.metrics.includes("tool-call")).length, 2);
       await post("Stop");
       assert.equal(api.deriveSessionBadge(api.sessions.get(sid)), "done");
     } finally { api.cleanup(); }

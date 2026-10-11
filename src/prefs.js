@@ -64,7 +64,7 @@ const {
   PET_MOUTH_ACCESSORY_IDS,
 } = require("./pet-customization-catalog");
 
-const CURRENT_VERSION = 20;
+const CURRENT_VERSION = 21;
 const DEFAULT_INTEGRATION_INSTALLED_IDS = Object.freeze(["claude-code", "codex"]);
 const DEFAULT_INTEGRATION_INSTALLED_SET = new Set(DEFAULT_INTEGRATION_INSTALLED_IDS);
 
@@ -478,6 +478,13 @@ const SCHEMA = {
       // hook, so permission bubbles default off. Opt-in like other non-default
       // agents — agent-gate fail-opens missing entries.
       "grok-build": { integrationInstalled: false, enabled: false, permissionsEnabled: false, notificationHookEnabled: true },
+      // KiroCrew is a state-only bridge over the gateway's chat lifecycle
+      // hooks. It has no PermissionRequest and no Notification hook event, so
+      // both flags default off (like minimax). Opt-in like every other
+      // non-default agent — agent-gate.js fail-opens a MISSING entry, so this
+      // default MUST exist or startup sync would write the hooks for any user
+      // who merely has a ~/.kiro/crew directory.
+      "kirocrew": { integrationInstalled: false, enabled: false, permissionsEnabled: false, notificationHookEnabled: false },
     }),
     normalize: normalizeAgents,
   },
@@ -979,6 +986,21 @@ function migrate(raw) {
       out.tgApproval.r3DirectSendEnabled = false;
     }
     out.version = 20;
+  }
+  // v20 -> v21: Codex approval routing gained Auto (#1155). save() bakes the
+  // full snapshot, so every earlier install has the old default "intercept"
+  // on disk and an explicit choice cannot be told apart from it. Move every
+  // upgrading user to Auto once; Intercept chosen after this release is kept.
+  // Fresh installs never run migrate() and already use the Auto default.
+  if (out.version < 21) {
+    const agents = out.agents;
+    const codex = agents && typeof agents === "object" && !Array.isArray(agents)
+      ? agents.codex : null;
+    if (codex && typeof codex === "object" && !Array.isArray(codex)
+      && (codex.permissionMode === "intercept" || codex.permissionMode === "native")) {
+      out.agents = { ...agents, codex: { ...codex, permissionMode: "auto" } };
+    }
+    out.version = 21;
   }
   if ((typeof out.version === "number" ? out.version : 0) < CURRENT_VERSION) {
     out.version = CURRENT_VERSION;
